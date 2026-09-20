@@ -138,7 +138,7 @@ class Game {
     // Garage
     this.garage = new Garage(this.uiOverlay, {
       onStartRace: (carId, levelId) => {
-        this.currentCarId = carId;
+        this.currentCarId = carId || 'rookie';
         this.currentLevel = LEVELS.find(l => l.id === levelId) || LEVELS[0];
         this.startRace();
       },

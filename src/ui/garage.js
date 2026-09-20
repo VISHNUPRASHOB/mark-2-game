@@ -4,9 +4,9 @@ import { LEVELS } from '../tracks/trackData.js';
 /**
  * Car & level selection UI (Garage)
  * Features:
- * - Auto-selects first unlocked car and first level by default for quick play
- * - Responsive cards with stat bars and theme glow
- * - Touch & Click responsive buttons
+ * - Bulletproof click and touch event handlers for PC and Mobile
+ * - Instant defaults ('rookie' car & 'city' track) so START RACE always works immediately
+ * - Clear visual selection indicators
  */
 export class Garage {
   /**
@@ -16,12 +16,12 @@ export class Garage {
   constructor(overlay, callbacks) {
     this.overlay = overlay;
     this.callbacks = callbacks;
-    this.selectedCarId = null;
-    this.selectedLevelId = null;
+    this.selectedCarId = CARS[0].id;
+    this.selectedLevelId = LEVELS[0].id;
     this.completedLevels = [];
     
     this.container = document.createElement('div');
-    this.container.style.cssText = 'width:100%;height:100%;background:rgba(8,12,22,0.96);color:white;display:flex;flex-direction:column;padding:20px;box-sizing:border-box;overflow-y:auto;font-family:"Segoe UI",system-ui,sans-serif;';
+    this.container.style.cssText = 'width:100%;height:100%;background:rgba(8,12,22,0.96);color:white;display:flex;flex-direction:column;padding:20px;box-sizing:border-box;overflow-y:auto;font-family:"Segoe UI",system-ui,sans-serif;pointer-events:auto;';
     
     if (!document.getElementById('garage-styles')) {
       const style = document.createElement('style');
@@ -41,32 +41,30 @@ export class Garage {
         @media (max-width: 549px) { .garage-grid { grid-template-columns: 1fr; } }
         
         .garage-card {
-          background: rgba(15, 23, 42, 0.8);
-          border: 2px solid rgba(255, 255, 255, 0.12);
+          background: rgba(15, 23, 42, 0.85);
+          border: 2px solid rgba(255, 255, 255, 0.15);
           border-radius: 14px;
           padding: 16px;
           cursor: pointer;
-          transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+          transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
           position: relative;
           overflow: hidden;
           touch-action: manipulation;
+          user-select: none;
         }
         .garage-card:hover {
-          transform: translateY(-4px);
-          border-color: rgba(255, 255, 255, 0.35);
+          transform: translateY(-3px);
+          border-color: rgba(255, 255, 255, 0.4);
         }
         .garage-card.selected {
-          border-color: var(--car-color, #00f0ff) !important;
-          box-shadow: 0 0 20px var(--car-color, #00f0ff) !important;
-          background: rgba(15, 23, 42, 0.95);
+          border-color: #00f0ff !important;
+          box-shadow: 0 0 20px rgba(0, 240, 255, 0.5) !important;
+          background: rgba(15, 23, 42, 0.98);
         }
         .garage-card.locked {
           opacity: 0.45;
           filter: grayscale(80%);
           cursor: not-allowed;
-        }
-        .garage-card.locked:hover {
-          transform: none;
         }
         .stat-bar-container {
           background: rgba(255, 255, 255, 0.1);
@@ -82,60 +80,63 @@ export class Garage {
         }
         
         .level-card {
-          background: rgba(15, 23, 42, 0.8);
-          border: 2px solid rgba(255, 255, 255, 0.12);
+          background: rgba(15, 23, 42, 0.85);
+          border: 2px solid rgba(255, 255, 255, 0.15);
           border-left-width: 8px;
           border-radius: 14px;
           padding: 18px;
           margin-bottom: 14px;
           cursor: pointer;
-          transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+          transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
           touch-action: manipulation;
+          user-select: none;
         }
         .level-card:hover {
-          transform: translateY(-3px);
-          background: rgba(30, 41, 59, 0.9);
+          transform: translateY(-2px);
+          background: rgba(30, 41, 59, 0.95);
         }
         .level-card.selected {
           border-color: #ffffff !important;
-          border-left-color: var(--theme-color, #00f0ff) !important;
-          box-shadow: 0 0 25px rgba(0, 240, 255, 0.35) !important;
+          border-left-color: #00f0ff !important;
+          box-shadow: 0 0 25px rgba(0, 240, 255, 0.4) !important;
+          background: rgba(30, 41, 59, 1.0);
         }
         
         .garage-footer {
           display: flex;
           justify-content: space-between;
+          align-items: center;
           margin-top: auto;
           padding: 15px 0;
           max-width: 960px;
           width: 100%;
           margin-left: auto;
           margin-right: auto;
+          gap: 15px;
         }
         .garage-btn {
-          padding: 14px 28px;
-          border-radius: 12px;
+          padding: 15px 32px;
+          border-radius: 14px;
           border: none;
-          font-size: 1.15rem;
+          font-size: 1.2rem;
           font-weight: 800;
           cursor: pointer;
           color: white;
           letter-spacing: 0.5px;
-          transition: transform 0.1s ease, filter 0.1s ease;
+          transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.1s ease;
           touch-action: manipulation;
+          user-select: none;
+        }
+        .garage-btn:hover {
+          filter: brightness(1.15);
+          transform: translateY(-2px);
         }
         .garage-btn:active {
           transform: scale(0.96);
         }
-        .garage-btn:disabled {
-          background: #334155 !important;
-          color: #64748b !important;
-          cursor: not-allowed;
-          box-shadow: none !important;
-        }
         .garage-btn-primary {
           background: linear-gradient(135deg, #0077ff, #00f0ff);
-          box-shadow: 0 4px 18px rgba(0, 240, 255, 0.4);
+          box-shadow: 0 4px 20px rgba(0, 240, 255, 0.45);
         }
         .garage-btn-back {
           background: linear-gradient(135deg, #475569, #334155);
@@ -156,8 +157,8 @@ export class Garage {
   
   show(completedLevels = []) {
     this.completedLevels = completedLevels;
-    this.selectedCarId = CARS[0].id; // Auto-select first car
-    this.selectedLevelId = LEVELS[0].id; // Auto-select first level
+    this.selectedCarId = this.selectedCarId || CARS[0].id;
+    this.selectedLevelId = this.selectedLevelId || LEVELS[0].id;
     
     this.overlay.innerHTML = '';
     this.overlay.appendChild(this.container);
@@ -180,12 +181,9 @@ export class Garage {
     const maxCompleted = this.getMaxCompleted();
     const maxStats = { topSpeed: 200, acceleration: 100, handling: 1.0, drift: 0.8 };
     
-    let nextBtn;
-    
     CARS.forEach((car, index) => {
       const isLocked = car.unlockLevel > (maxCompleted + 1);
-      const isSelected = this.selectedCarId === car.id || (!this.selectedCarId && index === 0);
-      if (isSelected && !isLocked) this.selectedCarId = car.id;
+      const isSelected = this.selectedCarId === car.id;
 
       const colorCSS = this.hexToCSS(car.color);
       
@@ -242,18 +240,18 @@ export class Garage {
       
       if (isLocked) {
         const lockOverlay = document.createElement('div');
-        lockOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(3,7,18,0.75);border-radius:12px;';
+        lockOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:rgba(3,7,18,0.85);border-radius:12px;';
         lockOverlay.innerHTML = `<div style="font-size:2.2rem;margin-bottom:6px;">🔒</div><div style="font-weight:800;font-size:0.85rem;color:#f8fafc;text-align:center;">Win Level ${car.unlockLevel} to unlock</div>`;
         card.appendChild(lockOverlay);
       } else {
-        const selectCar = () => {
+        const selectThisCar = (e) => {
+          if (e) e.preventDefault();
           grid.querySelectorAll('.garage-card').forEach(c => c.classList.remove('selected'));
           card.classList.add('selected');
           this.selectedCarId = car.id;
-          if (nextBtn) nextBtn.disabled = false;
         };
-        card.addEventListener('click', selectCar);
-        card.addEventListener('pointerdown', selectCar);
+        card.addEventListener('click', selectThisCar);
+        card.addEventListener('pointerup', selectThisCar);
       }
       
       grid.appendChild(card);
@@ -268,13 +266,23 @@ export class Garage {
     const backBtn = document.createElement('button');
     backBtn.className = 'garage-btn garage-btn-back';
     backBtn.textContent = '◀ MENU';
-    backBtn.onclick = () => { if (this.callbacks.onBack) this.callbacks.onBack(); };
+    const onBackClick = (e) => {
+      if (e) e.preventDefault();
+      if (this.callbacks.onBack) this.callbacks.onBack();
+    };
+    backBtn.addEventListener('click', onBackClick);
+    backBtn.addEventListener('pointerup', onBackClick);
     
-    nextBtn = document.createElement('button');
+    const nextBtn = document.createElement('button');
     nextBtn.className = 'garage-btn garage-btn-primary';
     nextBtn.textContent = 'SELECT TRACK ▶';
-    nextBtn.disabled = !this.selectedCarId;
-    nextBtn.onclick = () => { this.showLevelSelection(); };
+    const onNextClick = (e) => {
+      if (e) e.preventDefault();
+      this.selectedCarId = this.selectedCarId || CARS[0].id;
+      this.showLevelSelection();
+    };
+    nextBtn.addEventListener('click', onNextClick);
+    nextBtn.addEventListener('pointerup', onNextClick);
     
     footer.appendChild(backBtn);
     footer.appendChild(nextBtn);
@@ -304,16 +312,14 @@ export class Garage {
       3: '★★★  HARD'
     };
     
-    let raceBtn;
+    this.selectedLevelId = this.selectedLevelId || LEVELS[0].id;
     
-    LEVELS.forEach((level, index) => {
+    LEVELS.forEach((level) => {
       const themeColor = themeColors[level.id] || '#00f0ff';
-      const isSelected = this.selectedLevelId === level.id || (!this.selectedLevelId && index === 0);
-      if (isSelected) this.selectedLevelId = level.id;
+      const isSelected = this.selectedLevelId === level.id;
       
       const card = document.createElement('div');
       card.className = `level-card ${isSelected ? 'selected' : ''}`;
-      card.style.setProperty('--theme-color', themeColor);
       card.style.borderLeftColor = themeColor;
       
       const header = document.createElement('div');
@@ -332,7 +338,7 @@ export class Garage {
       card.appendChild(header);
       
       const desc = document.createElement('p');
-      desc.textContent = `${level.description} • Track Width: ${level.trackWidth}m`;
+      desc.textContent = `${level.description} • 20m Wide Circuit`;
       desc.style.cssText = 'color:#94a3b8;font-size:0.9rem;margin:0 0 8px 0;';
       card.appendChild(desc);
       
@@ -341,14 +347,14 @@ export class Garage {
       lapsEl.style.cssText = 'font-weight:700;font-size:0.85rem;color:#38bdf8;';
       card.appendChild(lapsEl);
       
-      const selectLevel = () => {
+      const selectThisLevel = (e) => {
+        if (e) e.preventDefault();
         list.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         this.selectedLevelId = level.id;
-        if (raceBtn) raceBtn.disabled = false;
       };
-      card.addEventListener('click', selectLevel);
-      card.addEventListener('pointerdown', selectLevel);
+      card.addEventListener('click', selectThisLevel);
+      card.addEventListener('pointerup', selectThisLevel);
       
       list.appendChild(card);
     });
@@ -362,17 +368,29 @@ export class Garage {
     const backBtn = document.createElement('button');
     backBtn.className = 'garage-btn garage-btn-back';
     backBtn.textContent = '◀ CARS';
-    backBtn.onclick = () => { this.showCarSelection(); };
+    const onCarsBack = (e) => {
+      if (e) e.preventDefault();
+      this.showCarSelection();
+    };
+    backBtn.addEventListener('click', onCarsBack);
+    backBtn.addEventListener('pointerup', onCarsBack);
     
-    raceBtn = document.createElement('button');
+    const raceBtn = document.createElement('button');
     raceBtn.className = 'garage-btn garage-btn-primary';
     raceBtn.textContent = '🏁 START RACE!';
-    raceBtn.disabled = !this.selectedLevelId;
-    raceBtn.onclick = () => {
+    
+    const triggerStartRace = (e) => {
+      if (e) e.preventDefault();
+      const carId = this.selectedCarId || 'rookie';
+      const levelId = this.selectedLevelId || 'city';
+      console.log('Starting race with car:', carId, 'level:', levelId);
       if (this.callbacks.onStartRace) {
-        this.callbacks.onStartRace(this.selectedCarId, this.selectedLevelId);
+        this.callbacks.onStartRace(carId, levelId);
       }
     };
+    
+    raceBtn.addEventListener('click', triggerStartRace);
+    raceBtn.addEventListener('pointerup', triggerStartRace);
     
     footer.appendChild(backBtn);
     footer.appendChild(raceBtn);
