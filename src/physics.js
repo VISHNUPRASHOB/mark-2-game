@@ -242,33 +242,35 @@ export class CarPhysics {
           const nx = dx / (dist || 1);
           const nz = dz / (dist || 1);
           
-          // Compute impact speed and angle
-          const forwardX = Math.sin(this.rotation);
-          const forwardZ = Math.cos(this.rotation);
-          const dot = forwardX * nx + forwardZ * nz; // positive if heading into wall
-          
-          // Deflection: push back to guardrail line
+          // Clamp position to stay inside track barrier
           this.position.x = trackInfo.point.x + nx * halfWidth;
           this.position.z = trackInfo.point.z + nz * halfWidth;
           
-          // Glancing blow vs hard crash
-          if (dot > 0.1) {
-            // Reflect heading along the wall tangent
-            const bounce = 0.35;
-            this.rotation -= dot * (1 + bounce) * Math.sign(yawDelta || 1) * 0.8;
+          // Get the forward track direction at current progress
+          const trackTangent = this.trackCurve.getTangentAt(this.trackProgress);
+          const trackHeading = Math.atan2(trackTangent.x, trackTangent.z);
+          
+          // Dot product to check if moving into the wall
+          const forwardX = Math.sin(this.rotation);
+          const forwardZ = Math.cos(this.rotation);
+          const dot = forwardX * nx + forwardZ * nz;
+          
+          if (dot > 0.05) {
+            // Smoothly align vehicle heading forward with track flow (never spin backwards!)
+            this.rotation = lerp(this.rotation, trackHeading, 1 - Math.exp(-8.0 * dt));
             this.rotation = normalizeAngle(this.rotation);
             
-            // Speed dampening proportional to impact severity
-            const impactSeverity = clamp(dot * (absSpeed / topSpeed), 0.1, 0.8);
-            this.speed *= (1.0 - impactSeverity * 0.45);
+            // Speed penalty
+            const speedPenalty = clamp(dot * 0.4, 0.05, 0.35);
+            this.speed *= (1.0 - speedPenalty);
             
-            // Trigger sparks
+            // Trigger sparks and sound
             this.sparkTrigger = true;
-            this.sparkPosition.set(this.position.x, this.position.y + 0.4, this.position.z);
+            this.sparkPosition.set(this.position.x, this.position.y + 0.35, this.position.z);
             this.sparkNormal.set(-nx, 0.4, -nz).normalize();
           } else {
-            // Slight scraping along guardrail
-            this.speed *= Math.max(0, 1 - dt * 1.5);
+            // Light scraping along barrier
+            this.speed *= Math.max(0, 1 - dt * 1.0);
             if (absSpeed > 20) {
               this.sparkTrigger = true;
               this.sparkPosition.set(this.position.x, this.position.y + 0.3, this.position.z);

@@ -189,7 +189,7 @@ export class Results {
     
     this.overlay.innerHTML = '';
     this.overlay.appendChild(this.container);
-    this.overlay.style.display = 'block';
+    this.overlay.style.display = 'flex';
     
     if (data.playerPosition === 1) {
       this.spawnConfetti();

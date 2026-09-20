@@ -11,74 +11,59 @@ export class MainMenu {
     this.callbacks = callbacks;
     
     this.container = document.createElement('div');
-    this.container.style.width = '100%';
-    this.container.style.height = '100%';
-    this.container.style.display = 'flex';
-    this.container.style.flexDirection = 'column';
-    this.container.style.alignItems = 'center';
-    this.container.style.justifyContent = 'center';
-    this.container.style.gap = '20px';
-    this.container.style.background = 'radial-gradient(circle at center, rgba(10,30,60,0.8) 0%, rgba(0,0,0,0.95) 100%)';
+    this.container.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at center, rgba(14,23,38,0.7) 0%, rgba(3,7,18,0.95) 100%);font-family:"Segoe UI",system-ui,sans-serif;';
     
     // Title
     const titleContainer = document.createElement('div');
     titleContainer.style.textAlign = 'center';
-    titleContainer.style.marginBottom = '40px';
+    titleContainer.style.marginBottom = '25px';
     
     const title = document.createElement('h1');
     title.textContent = 'MARK-II';
-    title.style.color = '#ffffff';
-    title.style.fontSize = 'clamp(4rem, 10vw, 8rem)';
-    title.style.margin = '0';
-    title.style.fontWeight = '900';
-    title.style.fontFamily = 'sans-serif';
-    title.style.textShadow = '0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 40px #0088ff, 0 0 80px #0000ff';
-    title.style.animation = 'pulse 2s infinite alternate';
+    title.style.cssText = 'color:#ffffff;font-size:clamp(3.8rem,10vw,7rem);margin:0;font-weight:900;letter-spacing:3px;text-shadow:0 0 20px #00f0ff, 0 0 40px rgba(0,119,255,0.7);';
     
     const subtitle = document.createElement('div');
     subtitle.textContent = 'VPS GAME CREATOR';
-    subtitle.style.color = '#aaaaaa';
-    subtitle.style.fontSize = '1.2rem';
-    subtitle.style.letterSpacing = '0.3em';
-    subtitle.style.fontWeight = '300';
-    subtitle.style.marginTop = '10px';
+    subtitle.style.cssText = 'color:#38bdf8;font-size:1.1rem;letter-spacing:0.35em;font-weight:700;margin-top:6px;';
     
-    // Add keyframes to document if not present
     if (!document.getElementById('menu-styles')) {
       const style = document.createElement('style');
       style.id = 'menu-styles';
       style.textContent = `
-        @keyframes pulse {
-          0% { text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 40px #0088ff, 0 0 80px #0000ff; }
-          100% { text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff, 0 0 50px #0088ff, 0 0 100px #0000ff; }
-        }
         .menu-btn {
-          min-width: 200px;
-          height: 50px;
-          border-radius: 12px;
+          min-width: 220px;
+          height: 54px;
+          border-radius: 14px;
           border: none;
           color: white;
-          font-weight: bold;
-          font-size: 1.2rem;
+          font-weight: 800;
+          font-size: 1.25rem;
           cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
+          letter-spacing: 1px;
+          transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+          touch-action: manipulation;
         }
         .menu-btn:hover {
-          transform: scale(1.05);
+          transform: translateY(-2px) scale(1.03);
         }
-        .btn-primary {
-          background: linear-gradient(90deg, #3498db, #2ecc71);
-          box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+        .menu-btn:active {
+          transform: scale(0.97);
         }
-        .btn-primary:hover {
-          box-shadow: 0 6px 20px rgba(46, 204, 113, 0.6);
+        .menu-btn-primary {
+          background: linear-gradient(135deg, #0077ff, #00f0ff);
+          box-shadow: 0 4px 20px rgba(0, 240, 255, 0.45);
         }
-        .btn-secondary {
-          background: linear-gradient(90deg, #555, #777);
+        .menu-btn-primary:hover {
+          box-shadow: 0 6px 25px rgba(0, 240, 255, 0.65);
+        }
+        .menu-btn-secondary {
+          background: rgba(30, 41, 59, 0.85);
+          border: 1.5px solid rgba(255, 255, 255, 0.2);
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         }
-        .btn-secondary:hover {
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+        .menu-btn-secondary:hover {
+          background: rgba(51, 65, 85, 0.95);
+          border-color: rgba(255, 255, 255, 0.4);
         }
       `;
       document.head.appendChild(style);
@@ -89,40 +74,32 @@ export class MainMenu {
     
     // Buttons
     const playBtn = document.createElement('button');
-    playBtn.textContent = 'PLAY';
-    playBtn.className = 'menu-btn btn-primary';
-    playBtn.onclick = () => { if(this.callbacks.onPlay) this.callbacks.onPlay(); };
+    playBtn.textContent = 'PLAY RACE';
+    playBtn.className = 'menu-btn menu-btn-primary';
+    const triggerPlay = () => { if (this.callbacks.onPlay) this.callbacks.onPlay(); };
+    playBtn.onclick = triggerPlay;
     
-    const settingsBtn = document.createElement('button');
-    settingsBtn.textContent = 'SETTINGS';
-    settingsBtn.className = 'menu-btn btn-secondary';
-    settingsBtn.onclick = () => { if(this.callbacks.onSettings) this.callbacks.onSettings(); };
+    const audioBtn = document.createElement('button');
+    audioBtn.textContent = 'MUTE / UNMUTE';
+    audioBtn.className = 'menu-btn menu-btn-secondary';
+    audioBtn.onclick = () => { if (this.callbacks.onSettings) this.callbacks.onSettings(); };
     
-    const creditsBtn = document.createElement('button');
-    creditsBtn.textContent = 'CREDITS';
-    creditsBtn.className = 'menu-btn btn-secondary';
-    creditsBtn.onclick = () => { console.log('Credits clicked'); }; // placeholder
-    
-    // Version
-    const version = document.createElement('div');
-    version.textContent = 'v1.0 | Built with Three.js';
-    version.style.position = 'absolute';
-    version.style.bottom = '20px';
-    version.style.color = '#777777';
-    version.style.fontSize = '0.9rem';
+    // Controls Info
+    const info = document.createElement('div');
+    info.style.cssText = 'color:#94a3b8;font-size:0.85rem;margin-top:15px;text-align:center;max-width:320px;line-height:1.4;';
+    info.innerHTML = '<b>PC</b>: WASD / Arrows + Space to Drift<br><b>Mobile</b>: On-screen steering & pedals';
     
     this.container.appendChild(titleContainer);
     this.container.appendChild(playBtn);
-    this.container.appendChild(settingsBtn);
-    this.container.appendChild(creditsBtn);
-    this.container.appendChild(version);
+    this.container.appendChild(audioBtn);
+    this.container.appendChild(info);
   }
   
-  /** Show menu, add to overlay */
+  /** Show menu */
   show() {
     this.overlay.innerHTML = '';
     this.overlay.appendChild(this.container);
-    this.overlay.style.display = 'block';
+    this.overlay.style.display = 'flex';
   }
   
   /** Hide menu */
@@ -133,7 +110,6 @@ export class MainMenu {
     this.overlay.style.display = 'none';
   }
   
-  /** Dispose */
   dispose() {
     this.hide();
   }

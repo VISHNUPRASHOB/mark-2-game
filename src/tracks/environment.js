@@ -7,9 +7,8 @@ import * as THREE from 'three';
  * @returns {THREE.Mesh}
  */
 export function createSkyDome(topColor, bottomColor) {
-  const skyGeo = new THREE.SphereGeometry(1000, 32, 15);
+  const skyGeo = new THREE.SphereGeometry(1200, 32, 16);
   
-  // Custom shader for gradient
   const vertexShader = `
     varying vec3 vWorldPosition;
     void main() {
@@ -24,7 +23,7 @@ export function createSkyDome(topColor, bottomColor) {
     varying vec3 vWorldPosition;
     void main() {
       float h = normalize(vWorldPosition).y;
-      gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), 0.6), 0.0)), 1.0);
+      gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), 0.55), 0.0)), 1.0);
     }
   `;
   
@@ -47,7 +46,7 @@ export function createSkyDome(topColor, bottomColor) {
 /**
  * Creates the complete environment for a level
  * @param {object} levelData - from trackData.js
- * @param {THREE.Scene} scene - the scene to add lights to
+ * @param {THREE.Scene} scene - the scene to add lights and fog to
  * @param {THREE.CatmullRomCurve3} curve - track curve for placing decorations
  * @returns {THREE.Group}
  */
@@ -55,101 +54,99 @@ export function buildEnvironment(levelData, scene, curve) {
   const envGroup = new THREE.Group();
   const theme = levelData.theme;
 
-  // Add lights to scene
+  // 1. Lighting Setup
   const ambientLight = new THREE.AmbientLight(theme.ambient, theme.ambientIntensity);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(theme.sun, theme.sunIntensity);
-  dirLight.position.set(theme.sunPosition.x, theme.sunPosition.y, theme.sunPosition.z);
-  dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 2048;
-  dirLight.shadow.mapSize.height = 2048;
-  dirLight.shadow.camera.near = 10;
-  dirLight.shadow.camera.far = 1000;
-  const frustumSize = 300;
-  dirLight.shadow.camera.left = -frustumSize;
-  dirLight.shadow.camera.right = frustumSize;
-  dirLight.shadow.camera.top = frustumSize;
-  dirLight.shadow.camera.bottom = -frustumSize;
-  scene.add(dirLight);
+  const sunLight = new THREE.DirectionalLight(theme.sun, theme.sunIntensity);
+  sunLight.position.set(theme.sunPosition.x, theme.sunPosition.y, theme.sunPosition.z);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.camera.near = 10;
+  sunLight.shadow.camera.far = 1000;
+  const frustumSize = 250;
+  sunLight.shadow.camera.left = -frustumSize;
+  sunLight.shadow.camera.right = frustumSize;
+  sunLight.shadow.camera.top = frustumSize;
+  sunLight.shadow.camera.bottom = -frustumSize;
+  scene.add(sunLight);
 
-  // Add fog and background
+  // 2. Sky & Fog
   scene.background = new THREE.Color(theme.sky.bottomColor);
-  scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near, theme.fog.far);
+  if (theme.fog) {
+    scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near, theme.fog.far);
+  }
 
-  // Add sky dome
+  // Sky Dome
   const skyDome = createSkyDome(theme.sky.topColor, theme.sky.bottomColor);
   envGroup.add(skyDome);
 
-  // Ground plane
-  const groundGeo = new THREE.PlaneGeometry(2000, 2000, 32, 32);
+  // 3. Ground Plane
+  const groundGeo = new THREE.PlaneGeometry(3000, 3000, 32, 32);
   const groundMat = new THREE.MeshStandardMaterial({ 
     color: theme.ground,
     roughness: 0.9,
     metalness: 0.1
   });
   
-  // Add noise displacement for desert ground
   if (theme.decorations === 'desert') {
     const posAttribute = groundGeo.attributes.position;
     for (let i = 0; i < posAttribute.count; i++) {
       const z = posAttribute.getZ(i);
-      // Rough displacement based on x, y (which becomes x, z)
-      posAttribute.setZ(i, z + (Math.random() - 0.5) * 5);
+      posAttribute.setZ(i, z + (Math.random() - 0.5) * 6);
     }
     groundGeo.computeVertexNormals();
   }
   
   const groundMesh = new THREE.Mesh(groundGeo, groundMat);
   groundMesh.rotation.x = -Math.PI / 2;
-  groundMesh.position.y = -0.5; // Slightly below track
+  groundMesh.position.y = -0.2;
   groundMesh.receiveShadow = true;
   envGroup.add(groundMesh);
 
-  // Decorations
-  const itemCount = 200;
+  // 4. Surroundings & Landmark Decorations
+  const itemCount = 180;
   const dummy = new THREE.Object3D();
 
   if (theme.decorations === 'city') {
-    // Buildings InstancedMesh
-    const bldGeo = new THREE.BoxGeometry(10, 1, 10);
-    // Translate geometry so scaling scales from bottom
+    // Buildings
+    const bldGeo = new THREE.BoxGeometry(14, 1, 14);
     bldGeo.translate(0, 0.5, 0);
-    const bldMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.8 });
+    const bldMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6, metalness: 0.2 });
     const bldMesh = new THREE.InstancedMesh(bldGeo, bldMat, itemCount);
     
-    // Trees InstancedMesh
-    const treeGeo = new THREE.ConeGeometry(2, 6, 8);
-    treeGeo.translate(0, 3, 0);
-    const treeMat = new THREE.MeshStandardMaterial({ color: 0x2d4c1e });
+    // Trees
+    const treeGeo = new THREE.ConeGeometry(3, 8, 8);
+    treeGeo.translate(0, 4, 0);
+    const treeMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 });
     const treeMesh = new THREE.InstancedMesh(treeGeo, treeMat, itemCount);
 
-    const bldColors = [0x555555, 0x8899aa, 0xaa9988, 0x334455];
+    const bldColors = [0x334155, 0x475569, 0x1e293b, 0x64748b, 0x0f172a];
     const colorObj = new THREE.Color();
 
     for (let i = 0; i < itemCount; i++) {
       const t = i / itemCount;
       const pt = curve.getPointAt(t);
       const tangent = curve.getTangentAt(t);
-      const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0,1,0)).normalize();
+      const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
       
-      // Place randomly left or right of track
       const side = Math.random() > 0.5 ? 1 : -1;
-      const dist = (levelData.trackWidth / 2) + 15 + Math.random() * 40;
+      const dist = (levelData.trackWidth / 2) + 16 + Math.random() * 50;
       
       dummy.position.copy(pt).add(binormal.multiplyScalar(side * dist));
       dummy.position.y = 0;
       
-      if (i % 2 === 0) { // Building
-        const height = 10 + Math.random() * 40;
-        dummy.scale.set(1 + Math.random(), height, 1 + Math.random());
+      if (i % 2 === 0) {
+        const height = 15 + Math.random() * 65;
+        dummy.scale.set(1 + Math.random() * 0.8, height, 1 + Math.random() * 0.8);
         dummy.rotation.y = Math.random() * Math.PI;
         dummy.updateMatrix();
         bldMesh.setMatrixAt(i, dummy.matrix);
         colorObj.setHex(bldColors[Math.floor(Math.random() * bldColors.length)]);
         bldMesh.setColorAt(i, colorObj);
-      } else { // Tree
-        dummy.scale.set(1 + Math.random(), 1 + Math.random()*0.5, 1 + Math.random());
+      } else {
+        dummy.scale.set(1 + Math.random(), 1 + Math.random() * 0.6, 1 + Math.random());
         dummy.rotation.y = Math.random() * Math.PI;
         dummy.updateMatrix();
         treeMesh.setMatrixAt(i, dummy.matrix);
@@ -163,32 +160,31 @@ export function buildEnvironment(levelData, scene, curve) {
     
     treeMesh.instanceMatrix.needsUpdate = true;
     treeMesh.castShadow = true;
-    treeMesh.receiveShadow = true;
     envGroup.add(treeMesh);
 
   } else if (theme.decorations === 'desert') {
-    // Canyon Rocks
-    const rockGeo = new THREE.DodecahedronGeometry(5, 0);
-    const rockMat = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 1.0 });
+    // Canyon Rock Formations
+    const rockGeo = new THREE.DodecahedronGeometry(6, 0);
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.95 });
     const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, itemCount * 2);
     
-    const rockColors = [0x8b4513, 0xa0522d, 0xcd853f, 0xd2691e];
+    const rockColors = [0x7c2d12, 0x9a3412, 0xc2410c, 0xb45309];
     const colorObj = new THREE.Color();
 
     for (let i = 0; i < itemCount * 2; i++) {
       const t = (i / (itemCount * 2));
       const pt = curve.getPointAt(t);
       const tangent = curve.getTangentAt(t);
-      const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0,1,0)).normalize();
+      const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
       
       const side = Math.random() > 0.5 ? 1 : -1;
-      const dist = (levelData.trackWidth / 2) + 10 + Math.random() * 60;
+      const dist = (levelData.trackWidth / 2) + 14 + Math.random() * 70;
       
       dummy.position.copy(pt).add(binormal.multiplyScalar(side * dist));
-      dummy.position.y = (Math.random() - 0.5) * 10;
+      dummy.position.y = (Math.random() - 0.5) * 8;
       
-      const scale = 2 + Math.random() * 8;
-      dummy.scale.set(scale, scale * (1 + Math.random() * 2), scale);
+      const scale = 2.5 + Math.random() * 9;
+      dummy.scale.set(scale, scale * (1 + Math.random() * 2.2), scale);
       dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
       dummy.updateMatrix();
       
@@ -203,9 +199,9 @@ export function buildEnvironment(levelData, scene, curve) {
     envGroup.add(rockMesh);
 
   } else if (theme.decorations === 'neon') {
-    // Floating Neon Shapes
-    const shapeCount = 100;
-    const shapeGeo = new THREE.OctahedronGeometry(4, 0);
+    // Holographic Cyberpunk Wireframes
+    const shapeCount = 90;
+    const shapeGeo = new THREE.OctahedronGeometry(5, 0);
     const edgesGeo = new THREE.EdgesGeometry(shapeGeo);
     
     const mat1 = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
@@ -215,28 +211,20 @@ export function buildEnvironment(levelData, scene, curve) {
       const t = i / shapeCount;
       const pt = curve.getPointAt(t);
       const tangent = curve.getTangentAt(t);
-      const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0,1,0)).normalize();
+      const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
       
       const side = Math.random() > 0.5 ? 1 : -1;
-      const dist = (levelData.trackWidth / 2) + 5 + Math.random() * 30;
+      const dist = (levelData.trackWidth / 2) + 10 + Math.random() * 40;
       
       const mesh = new THREE.LineSegments(edgesGeo, i % 2 === 0 ? mat1 : mat2);
       mesh.position.copy(pt).add(binormal.multiplyScalar(side * dist));
-      mesh.position.y = pt.y + 15 + Math.random() * 20;
-      
+      mesh.position.y = pt.y + 16 + Math.random() * 25;
       mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      
-      // Basic rotation animation via userData
-      mesh.userData = { 
-        rx: (Math.random() - 0.5) * 0.02,
-        ry: (Math.random() - 0.5) * 0.02
-      };
       
       envGroup.add(mesh);
       
-      // Occasional Point lights matching neon colors
-      if (i % 5 === 0) {
-        const pLight = new THREE.PointLight(i % 2 === 0 ? 0x00ffff : 0xff00ff, 1, 50);
+      if (i % 6 === 0) {
+        const pLight = new THREE.PointLight(i % 2 === 0 ? 0x00ffff : 0xff00ff, 2, 70);
         pLight.position.copy(mesh.position);
         envGroup.add(pLight);
       }

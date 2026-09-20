@@ -210,10 +210,19 @@ class Game {
         this.uiOverlay.style.display = 'none';
         if (this.hud) this.hud.show();
         if (this.input.isMobile()) this.input.showTouchControls();
-        this.hud.showCountdown(() => {
-          this.audio.resume();
-          this.setState(STATE.RACING);
-        });
+        this.audio.resume();
+        this.hud.showCountdown(
+          (step) => {
+            if (step === 'GO!') {
+              this.audio.playCountdownGo();
+            } else {
+              this.audio.playCountdownBeep();
+            }
+          },
+          () => {
+            this.setState(STATE.RACING);
+          }
+        );
         break;
       case STATE.RACING:
         this.raceStarted = true;
@@ -314,55 +323,12 @@ class Game {
     this.aiDrivers = [];
     this.aiCarMeshes = [];
 
-    // Build track
+    // Build track & environment (handles road, barriers, gantry, lighting, sky & fog)
     this.trackData = buildTrack(level);
     scene.add(this.trackData.trackGroup);
 
-    // Build environment
     const envGroup = buildEnvironment(level, scene, this.trackData.curve);
     scene.add(envGroup);
-
-    // Sky dome
-    const skyDome = createSkyDome(level.theme.sky.topColor, level.theme.sky.bottomColor);
-    scene.add(skyDome);
-
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(
-      level.theme.ambient,
-      level.theme.ambientIntensity
-    );
-    scene.add(ambientLight);
-
-    const sunLight = new THREE.DirectionalLight(
-      level.theme.sun,
-      level.theme.sunIntensity
-    );
-    sunLight.position.set(
-      level.theme.sunPosition.x,
-      level.theme.sunPosition.y,
-      level.theme.sunPosition.z
-    );
-    if (!this.gameRenderer.isMobile()) {
-      sunLight.castShadow = true;
-      sunLight.shadow.mapSize.width = 2048;
-      sunLight.shadow.mapSize.height = 2048;
-      sunLight.shadow.camera.near = 1;
-      sunLight.shadow.camera.far = 500;
-      sunLight.shadow.camera.left = -150;
-      sunLight.shadow.camera.right = 150;
-      sunLight.shadow.camera.top = 150;
-      sunLight.shadow.camera.bottom = -150;
-    }
-    scene.add(sunLight);
-
-    // Fog
-    if (level.theme.fog) {
-      scene.fog = new THREE.Fog(
-        level.theme.fog.color,
-        level.theme.fog.near,
-        level.theme.fog.far
-      );
-    }
 
     // Player car
     this.playerCarMesh = createCarMesh(this.currentCarId);

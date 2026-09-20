@@ -1,5 +1,10 @@
 /**
- * Manages the in-game HUD display
+ * In-Game HUD & Radar Minimap System
+ * Features:
+ * - High-DPI Radar Minimap with thick neon track outline, player heading arrow & AI dots
+ * - Dynamic Speedometer with Gear display (GEAR 1..5 / REVERSE) & RPM warning arc
+ * - Lap counter, position indicator badge (1st, 2nd, 3rd, 4th), and race lap timer
+ * - High-contrast responsive HUD overlays
  */
 export class HUD {
   /**
@@ -7,64 +12,130 @@ export class HUD {
    */
   constructor(hudContainer) {
     this.container = hudContainer;
-    
-    // Clear any existing content
     this.container.innerHTML = '';
     
-    // 1. Speed display (bottom-left)
+    // Inject HUD CSS styles
+    if (!document.getElementById('hud-styles')) {
+      const style = document.createElement('style');
+      style.id = 'hud-styles';
+      style.textContent = `
+        .hud-card {
+          background: rgba(11, 17, 32, 0.75);
+          border: 1.5px solid rgba(255, 255, 255, 0.18);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-radius: 16px;
+          color: #ffffff;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+          pointer-events: none;
+        }
+        .hud-pos-text {
+          font-size: clamp(2rem, 5vw, 2.75rem);
+          font-weight: 900;
+          line-height: 1;
+        }
+        .hud-lap-text {
+          font-size: clamp(1rem, 2.5vw, 1.35rem);
+          font-weight: 800;
+          letter-spacing: 1px;
+        }
+        .hud-timer-text {
+          font-family: 'Courier New', monospace;
+          font-size: clamp(1.1rem, 3vw, 1.5rem);
+          font-weight: 800;
+          letter-spacing: 1.5px;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // ─── 1. Position Badge (Top-Left) ──────────────────────────────
+    this.posContainer = document.createElement('div');
+    this.posContainer.className = 'hud-card';
+    this.posContainer.style.cssText = 'position:absolute;top:1rem;left:1rem;padding:0.75rem 1.25rem;display:flex;flex-direction:column;align-items:center;min-width:90px;';
+    
+    const posLabel = document.createElement('div');
+    posLabel.style.cssText = 'font-size:0.7rem;font-weight:700;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;';
+    posLabel.textContent = 'POSITION';
+    
+    this.posValue = document.createElement('div');
+    this.posValue.className = 'hud-pos-text';
+    this.posValue.innerHTML = '1<span style="font-size:1.1rem;color:#cbd5e1;">ST</span>';
+    
+    this.posContainer.appendChild(posLabel);
+    this.posContainer.appendChild(this.posValue);
+
+    // ─── 2. Timer & Lap Counter (Top-Center) ───────────────────────
+    this.topCenterContainer = document.createElement('div');
+    this.topCenterContainer.className = 'hud-card';
+    this.topCenterContainer.style.cssText = 'position:absolute;top:1rem;left:50%;transform:translateX(-50%);padding:0.6rem 1.5rem;display:flex;gap:1.5rem;align-items:center;';
+    
+    // Lap box
+    const lapBox = document.createElement('div');
+    lapBox.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
+    const lapLabel = document.createElement('div');
+    lapLabel.style.cssText = 'font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:1px;';
+    lapLabel.textContent = 'LAP';
+    this.lapValue = document.createElement('div');
+    this.lapValue.className = 'hud-lap-text';
+    this.lapValue.textContent = '1 / 3';
+    lapBox.appendChild(lapLabel);
+    lapBox.appendChild(this.lapValue);
+
+    // Separator line
+    const sep = document.createElement('div');
+    sep.style.cssText = 'width:1px;height:28px;background:rgba(255,255,255,0.2);';
+
+    // Timer box
+    const timerBox = document.createElement('div');
+    timerBox.style.cssText = 'display:flex;flex-direction:column;align-items:center;';
+    const timeLabel = document.createElement('div');
+    timeLabel.style.cssText = 'font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:1px;';
+    timeLabel.textContent = 'TIME';
+    this.timerValue = document.createElement('div');
+    this.timerValue.className = 'hud-timer-text';
+    this.timerValue.style.color = '#00f0ff';
+    this.timerValue.textContent = '00:00.00';
+    timerBox.appendChild(timeLabel);
+    timerBox.appendChild(this.timerValue);
+
+    this.topCenterContainer.appendChild(lapBox);
+    this.topCenterContainer.appendChild(sep);
+    this.topCenterContainer.appendChild(timerBox);
+
+    // ─── 3. High-Contrast Radar Minimap (Top-Right) ────────────────
+    this.minimapContainer = document.createElement('div');
+    this.minimapContainer.className = 'hud-card';
+    this.minimapContainer.style.cssText = 'position:absolute;top:1rem;right:1rem;padding:6px;width:140px;height:140px;display:flex;align-items:center;justify-content:center;';
+    
+    this.minimapCanvas = document.createElement('canvas');
+    this.minimapCanvas.width = 280; // High-DPI internal buffer
+    this.minimapCanvas.height = 280;
+    this.minimapCanvas.style.cssText = 'width:100%;height:100%;border-radius:10px;display:block;';
+    this.minimapContainer.appendChild(this.minimapCanvas);
+    this.minimapCtx = this.minimapCanvas.getContext('2d');
+
+    // ─── 4. Speedometer Gauge (Bottom-Left) ────────────────────────
     this.speedContainer = document.createElement('div');
-    this.speedContainer.style.position = 'absolute';
-    this.speedContainer.style.bottom = '20px';
-    this.speedContainer.style.left = '20px';
-    this.speedContainer.style.width = '100px';
-    this.speedContainer.style.height = '100px';
-    this.speedContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
-    this.speedContainer.style.borderRadius = '50%';
-    this.speedContainer.style.display = 'flex';
-    this.speedContainer.style.flexDirection = 'column';
-    this.speedContainer.style.justifyContent = 'center';
-    this.speedContainer.style.alignItems = 'center';
-    this.speedContainer.style.border = '2px solid rgba(255, 255, 255, 0.2)';
-    this.speedContainer.style.overflow = 'hidden';
+    this.speedContainer.className = 'hud-card';
+    this.speedContainer.style.cssText = 'position:absolute;bottom:1.5rem;left:1.5rem;width:115px;height:115px;border-radius:50%;display:flex;flex-direction:column;justify-content:center;align-items:center;overflow:hidden;';
     
     this.speedGauge = document.createElement('div');
-    this.speedGauge.style.position = 'absolute';
-    this.speedGauge.style.top = '0';
-    this.speedGauge.style.left = '0';
-    this.speedGauge.style.width = '100%';
-    this.speedGauge.style.height = '100%';
-    this.speedGauge.style.borderRadius = '50%';
-    this.speedGauge.style.background = 'conic-gradient(#00ffaa 0%, transparent 0%)';
-    this.speedGauge.style.zIndex = '1';
+    this.speedGauge.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border-radius:50%;background:conic-gradient(#00f0ff 0%, transparent 0%);z-index:1;transform:rotate(-135deg);';
     
     const gaugeMask = document.createElement('div');
-    gaugeMask.style.position = 'absolute';
-    gaugeMask.style.top = '5px';
-    gaugeMask.style.left = '5px';
-    gaugeMask.style.width = 'calc(100% - 10px)';
-    gaugeMask.style.height = 'calc(100% - 10px)';
-    gaugeMask.style.backgroundColor = '#1a1a1a';
-    gaugeMask.style.borderRadius = '50%';
-    gaugeMask.style.zIndex = '2';
+    gaugeMask.style.cssText = 'position:absolute;top:7px;left:7px;width:calc(100% - 14px);height:calc(100% - 14px);background:#0b1120;border-radius:50%;z-index:2;';
     
     this.speedText = document.createElement('div');
-    this.speedText.style.color = '#ffffff';
-    this.speedText.style.fontSize = '24px';
-    this.speedText.style.fontWeight = 'bold';
-    this.speedText.style.zIndex = '3';
-    this.speedText.style.fontFamily = 'monospace';
+    this.speedText.style.cssText = 'color:#ffffff;font-size:28px;font-weight:900;z-index:3;font-family:sans-serif;line-height:1;';
     this.speedText.textContent = '0';
     
     const speedUnit = document.createElement('div');
-    speedUnit.style.color = '#aaaaaa';
-    speedUnit.style.fontSize = '12px';
-    speedUnit.style.zIndex = '3';
+    speedUnit.style.cssText = 'color:#94a3b8;font-size:10px;font-weight:700;z-index:3;letter-spacing:1px;margin-top:2px;';
+    speedUnit.textContent = 'KM/H';
+
     this.gearText = document.createElement('div');
-    this.gearText.style.color = '#00c3ff';
-    this.gearText.style.fontSize = '11px';
-    this.gearText.style.fontWeight = 'bold';
-    this.gearText.style.zIndex = '3';
-    this.gearText.style.letterSpacing = '1px';
+    this.gearText.style.cssText = 'color:#00f0ff;font-size:11px;font-weight:800;z-index:3;letter-spacing:1px;margin-top:2px;';
     this.gearText.textContent = 'GEAR 1';
 
     this.speedContainer.appendChild(this.speedGauge);
@@ -72,95 +143,21 @@ export class HUD {
     this.speedContainer.appendChild(this.speedText);
     this.speedContainer.appendChild(speedUnit);
     this.speedContainer.appendChild(this.gearText);
-    
-    // 2. Lap counter (top-right)
-    this.lapContainer = document.createElement('div');
-    this.lapContainer.style.position = 'absolute';
-    this.lapContainer.style.top = '20px';
-    this.lapContainer.style.right = '20px';
-    this.lapContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    this.lapContainer.style.color = '#ffffff';
-    this.lapContainer.style.padding = '8px 16px';
-    this.lapContainer.style.borderRadius = '20px';
-    this.lapContainer.style.fontFamily = 'monospace';
-    this.lapContainer.style.fontSize = '18px';
-    this.lapContainer.style.fontWeight = 'bold';
-    
-    // 3. Position display (top-left)
-    this.posContainer = document.createElement('div');
-    this.posContainer.style.position = 'absolute';
-    this.posContainer.style.top = '20px';
-    this.posContainer.style.left = '20px';
-    this.posContainer.style.fontSize = '36px';
-    this.posContainer.style.fontWeight = '900';
-    this.posContainer.style.fontFamily = 'sans-serif';
-    this.posContainer.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
-    
-    // 4. Minimap canvas (below lap counter)
-    this.minimapContainer = document.createElement('div');
-    this.minimapContainer.style.position = 'absolute';
-    this.minimapContainer.style.top = '70px';
-    this.minimapContainer.style.right = '20px';
-    this.minimapContainer.style.width = '120px';
-    this.minimapContainer.style.height = '120px';
-    this.minimapContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    this.minimapContainer.style.border = '2px solid rgba(255,255,255,0.2)';
-    this.minimapContainer.style.borderRadius = '8px';
-    
-    this.minimapCanvas = document.createElement('canvas');
-    this.minimapCanvas.width = 120;
-    this.minimapCanvas.height = 120;
-    this.minimapCanvas.style.width = '100%';
-    this.minimapCanvas.style.height = '100%';
-    this.minimapContainer.appendChild(this.minimapCanvas);
-    this.minimapCtx = this.minimapCanvas.getContext('2d');
-    
-    // 5. Timer display (top-center)
-    this.timerContainer = document.createElement('div');
-    this.timerContainer.style.position = 'absolute';
-    this.timerContainer.style.top = '20px';
-    this.timerContainer.style.left = '50%';
-    this.timerContainer.style.transform = 'translateX(-50%)';
-    this.timerContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    this.timerContainer.style.color = '#ffffff';
-    this.timerContainer.style.padding = '8px 16px';
-    this.timerContainer.style.borderRadius = '20px';
-    this.timerContainer.style.fontFamily = 'monospace';
-    this.timerContainer.style.fontSize = '24px';
-    this.timerContainer.style.fontWeight = 'bold';
-    this.timerContainer.textContent = '00:00.000';
-    
-    // 6. Countdown overlay (center)
+
+    // ─── 5. Countdown Banner (Center) ──────────────────────────────
     this.countdownContainer = document.createElement('div');
-    this.countdownContainer.style.position = 'absolute';
-    this.countdownContainer.style.top = '50%';
-    this.countdownContainer.style.left = '50%';
-    this.countdownContainer.style.transform = 'translate(-50%, -50%)';
-    this.countdownContainer.style.color = '#ffffff';
-    this.countdownContainer.style.fontSize = 'clamp(3rem, 8vw, 6rem)';
-    this.countdownContainer.style.fontWeight = '900';
-    this.countdownContainer.style.fontFamily = 'sans-serif';
-    this.countdownContainer.style.textShadow = '0 0 20px rgba(0,0,0,0.8)';
-    this.countdownContainer.style.textAlign = 'center';
-    this.countdownContainer.style.display = 'none';
-    this.countdownContainer.style.transition = 'transform 0.1s ease-out';
-    
-    // Append all
-    this.container.appendChild(this.speedContainer);
-    this.container.appendChild(this.lapContainer);
+    this.countdownContainer.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%, -50%);color:#ffffff;font-size:clamp(4rem, 12vw, 8rem);font-weight:900;text-shadow:0 0 35px #00f0ff, 0 0 70px rgba(0, 240, 255, 0.6);text-align:center;display:none;z-index:200;pointer-events:none;';
+
+    // Append everything to HUD
     this.container.appendChild(this.posContainer);
+    this.container.appendChild(this.topCenterContainer);
     this.container.appendChild(this.minimapContainer);
-    this.container.appendChild(this.timerContainer);
+    this.container.appendChild(this.speedContainer);
     this.container.appendChild(this.countdownContainer);
   }
-  
+
   /**
-   * Update speedometer with speed, maxSpeed, gear and RPM
-   * @param {number} speed - current speed
-   * @param {number} maxSpeed - car's top speed
-   * @param {number} gear - current gear
-   * @param {number} rpm - current RPM (0 to 1)
-   * @param {boolean} isReversing - whether car is reversing
+   * Update speedometer with speed, gear and RPM
    */
   updateSpeed(speed, maxSpeed, gear = 1, rpm = 0.3, isReversing = false) {
     const displaySpeed = Math.max(0, Math.round(speed));
@@ -169,98 +166,103 @@ export class HUD {
     if (this.gearText) {
       if (isReversing) {
         this.gearText.textContent = 'REVERSE';
-        this.gearText.style.color = '#ffaa00';
+        this.gearText.style.color = '#f59e0b';
       } else {
         this.gearText.textContent = `GEAR ${gear}`;
-        this.gearText.style.color = gear === 5 ? '#ff3366' : '#00c3ff';
+        this.gearText.style.color = gear === 5 ? '#f43f5e' : '#00f0ff';
       }
     }
     
-    // 270 degrees arc max
-    const fraction = Math.min(Math.max(speed / maxSpeed, 0), 1);
+    // 270 degrees arc
+    const fraction = Math.min(Math.max(speed / (maxSpeed || 150), 0), 1);
     const degrees = fraction * 270;
     
-    let color = '#00ffaa';
-    if (rpm > 0.85 || fraction > 0.8) color = '#ff3300';
-    else if (rpm > 0.6 || fraction > 0.5) color = '#ffcc00';
+    let color = '#00f0ff';
+    if (rpm > 0.85 || fraction > 0.8) color = '#f43f5e';
+    else if (rpm > 0.6 || fraction > 0.5) color = '#facc15';
     
     this.speedGauge.style.background = `conic-gradient(${color} ${degrees}deg, transparent ${degrees}deg)`;
-    this.speedGauge.style.transform = 'rotate(-135deg)';
   }
-  
+
   /**
    * Update lap counter
-   * @param {number} current - current lap (1-based)
-   * @param {number} total - total laps
    */
   updateLap(current, total) {
-    this.lapContainer.textContent = `LAP ${current}/${total}`;
+    this.lapValue.textContent = `${current} / ${total}`;
   }
-  
+
   /**
-   * Update race position
-   * @param {number} position - 1-4
-   * @param {number} total - total racers
+   * Update race position (1st, 2nd, 3rd, 4th)
    */
-  updatePosition(position, total) {
-    let suffix = 'th';
-    if (position === 1) suffix = 'st';
-    if (position === 2) suffix = 'nd';
-    if (position === 3) suffix = 'rd';
+  updatePosition(position) {
+    const suffixes = ['ST', 'ND', 'RD', 'TH'];
+    const suffix = suffixes[Math.min(position - 1, 3)] || 'TH';
     
     let color = '#ffffff';
-    if (position === 1) color = '#ffd700'; // Gold
-    if (position === 2) color = '#c0c0c0'; // Silver
-    if (position === 3) color = '#cd7f32'; // Bronze
+    if (position === 1) color = '#fbbf24'; // Gold
+    else if (position === 2) color = '#cbd5e1'; // Silver
+    else if (position === 3) color = '#f97316'; // Bronze
     
-    this.posContainer.style.color = color;
-    this.posContainer.innerHTML = `${position}<span style="font-size: 16px; vertical-align: super;">${suffix}</span>`;
+    this.posValue.style.color = color;
+    this.posValue.innerHTML = `${position}<span style="font-size:1.1rem;color:#94a3b8;margin-left:2px;">${suffix}</span>`;
   }
-  
+
   /**
-   * Update the minimap display
+   * Draw high-contrast Radar Minimap
    * @param {Array<{x: number, z: number, isPlayer: boolean}>} carPositions
-   * @param {Array<{x: number, z: number}>} trackPoints - simplified track outline
+   * @param {Array<{x: number, z: number}>} trackPoints
    */
   updateMinimap(carPositions, trackPoints) {
     const ctx = this.minimapCtx;
-    const width = this.minimapCanvas.width;
-    const height = this.minimapCanvas.height;
+    const w = this.minimapCanvas.width;
+    const h = this.minimapCanvas.height;
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, w, h);
     
-    // Calculate bounds
+    // Dark radar backdrop
+    ctx.fillStyle = '#060d1b';
+    ctx.fillRect(0, 0, w, h);
+    
+    // Radar grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, w * 0.42, 0, Math.PI * 2);
+    ctx.arc(w / 2, h / 2, w * 0.22, 0, Math.PI * 2);
+    ctx.moveTo(w / 2, 10); ctx.lineTo(w / 2, h - 10);
+    ctx.moveTo(10, h / 2); ctx.lineTo(w - 10, h / 2);
+    ctx.stroke();
+
+    if (!trackPoints || trackPoints.length === 0) return;
+
+    // Calculate bounding box
     let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
-    if (trackPoints && trackPoints.length > 0) {
-      trackPoints.forEach(p => {
-        minX = Math.min(minX, p.x);
-        minZ = Math.min(minZ, p.z);
-        maxX = Math.max(maxX, p.x);
-        maxZ = Math.max(maxZ, p.z);
-      });
-    } else {
-      return;
-    }
-    
-    const padding = 10;
-    const sizeX = maxX - minX;
-    const sizeZ = maxZ - minZ;
-    const scale = Math.min((width - padding * 2) / sizeX, (height - padding * 2) / sizeZ);
+    trackPoints.forEach(p => {
+      minX = Math.min(minX, p.x);
+      minZ = Math.min(minZ, p.z);
+      maxX = Math.max(maxX, p.x);
+      maxZ = Math.max(maxZ, p.z);
+    });
+
+    const padding = 35;
+    const sizeX = (maxX - minX) || 1;
+    const sizeZ = (maxZ - minZ) || 1;
+    const scale = Math.min((w - padding * 2) / sizeX, (h - padding * 2) / sizeZ);
     
     const cx = (minX + maxX) / 2;
     const cz = (minZ + maxZ) / 2;
     
-    const toMap = (x, z) => {
-      return {
-        x: width / 2 + (x - cx) * scale,
-        y: height / 2 + (z - cz) * scale
-      };
-    };
-    
-    // Draw track
+    const toMap = (x, z) => ({
+      x: w / 2 + (x - cx) * scale,
+      y: h / 2 + (z - cz) * scale
+    });
+
+    // 1. Thick Outer Track Border
     ctx.beginPath();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 14;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     for (let i = 0; i < trackPoints.length; i++) {
       const p = toMap(trackPoints[i].x, trackPoints[i].z);
       if (i === 0) ctx.moveTo(p.x, p.y);
@@ -268,43 +270,88 @@ export class HUD {
     }
     ctx.closePath();
     ctx.stroke();
-    
-    // Draw cars
+
+    // 2. Inner Glowing Track Line
+    ctx.beginPath();
+    ctx.strokeStyle = '#00f0ff';
+    ctx.lineWidth = 6;
+    for (let i = 0; i < trackPoints.length; i++) {
+      const p = toMap(trackPoints[i].x, trackPoints[i].z);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // 3. Start / Finish Line Marker
+    const startPoint = toMap(trackPoints[0].x, trackPoints[0].z);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(startPoint.x, startPoint.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 4. Opponent Cars (Red / Orange dots)
     if (carPositions) {
       carPositions.forEach(car => {
-        const p = toMap(car.x, car.z);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, car.isPlayer ? 4 : 3, 0, Math.PI * 2);
-        ctx.fillStyle = car.isPlayer ? '#00ffaa' : '#ff3333';
-        ctx.fill();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        if (!car.isPlayer) {
+          const p = toMap(car.x, car.z);
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
       });
+
+      // 5. Player Car (Bright Green Glowing Arrow / Dot)
+      const player = carPositions.find(c => c.isPlayer);
+      if (player) {
+        const p = toMap(player.x, player.z);
+        
+        // Outer glow
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.4)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Player Core
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
     }
   }
-  
+
   /**
    * Update race timer
-   * @param {number} elapsed - time in seconds
    */
   updateTimer(elapsed) {
     const mins = Math.floor(elapsed / 60);
     const secs = Math.floor(elapsed % 60);
-    const ms = Math.floor((elapsed % 1) * 1000);
+    const ms = Math.floor((elapsed % 1) * 100);
     
     const sMins = mins.toString().padStart(2, '0');
     const sSecs = secs.toString().padStart(2, '0');
-    const sMs = ms.toString().padStart(3, '0');
+    const sMs = ms.toString().padStart(2, '0');
     
-    this.timerContainer.textContent = `${sMins}:${sSecs}.${sMs}`;
+    this.timerValue.textContent = `${sMins}:${sSecs}.${sMs}`;
   }
-  
+
   /**
-   * Show countdown animation (3-2-1-GO!)
-   * @param {function} onComplete - called when countdown finishes
+   * Show animated countdown (3-2-1-GO!)
+   * @param {function} onTick - callback on each number (3, 2, 1, GO!)
+   * @param {function} onComplete - callback when countdown finishes
    */
-  showCountdown(onComplete) {
+  showCountdown(onTick, onComplete) {
     this.countdownContainer.style.display = 'block';
     
     const steps = ['3', '2', '1', 'GO!'];
@@ -317,34 +364,37 @@ export class HUD {
         return;
       }
       
-      this.countdownContainer.textContent = steps[stepIndex];
-      this.countdownContainer.style.transform = 'translate(-50%, -50%) scale(0.5)';
-      this.countdownContainer.style.opacity = '0';
+      const currentText = steps[stepIndex];
+      this.countdownContainer.textContent = currentText;
+      this.countdownContainer.style.color = currentText === 'GO!' ? '#10b981' : '#ffffff';
       
-      // Force reflow
-      void this.countdownContainer.offsetWidth;
-      
-      this.countdownContainer.style.transform = 'translate(-50%, -50%) scale(1)';
+      this.countdownContainer.style.transform = 'translate(-50%, -50%) scale(1.4)';
       this.countdownContainer.style.opacity = '1';
       
+      if (onTick) onTick(currentText);
+
+      setTimeout(() => {
+        this.countdownContainer.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
+        this.countdownContainer.style.transform = 'translate(-50%, -50%) scale(1.0)';
+      }, 50);
+      
       stepIndex++;
-      setTimeout(nextStep, stepIndex === steps.length ? 500 : 1000);
+      setTimeout(nextStep, currentText === 'GO!' ? 600 : 900);
     };
     
     nextStep();
   }
-  
+
   /** Show HUD */
   show() {
     this.container.style.display = 'block';
   }
-  
+
   /** Hide HUD */
   hide() {
     this.container.style.display = 'none';
   }
-  
-  /** Cleanup */
+
   dispose() {
     this.container.innerHTML = '';
   }
