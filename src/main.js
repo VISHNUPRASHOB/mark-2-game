@@ -340,6 +340,9 @@ class Game {
     this.playerCarMesh.rotation.y = playerRotation;
     scene.add(this.playerCarMesh);
 
+    // Snap camera directly behind player car facing down track
+    this.gameRenderer.resetChaseCamera(startPos, playerRotation);
+
     // Player physics
     this.playerPhysics = new CarPhysics(
       carDef.stats,
@@ -544,13 +547,11 @@ class Game {
       updateCarSuspension(this.aiCarMeshes[i], 0, 0);
     }
 
-    // GTA 5 Dynamic Chase Camera with speed FOV and drift sway
+    // Steady GTA 5 Chase Camera
     this.gameRenderer.updateChaseCamera(
       playerPos,
       this.playerPhysics.getRotation(),
       this.playerPhysics.getSpeed(),
-      topSpeed,
-      this.playerPhysics.driftAngle,
       dt
     );
 
@@ -621,12 +622,9 @@ class Game {
 
   updateRaceVisuals(dt) {
     if (this.playerCarMesh && this.playerPhysics) {
-      const carDef = CARS.find(c => c.id === this.currentCarId) || CARS[0];
       this.gameRenderer.updateChaseCamera(
         this.playerPhysics.getPosition(),
         this.playerPhysics.getRotation(),
-        0,
-        carDef.stats.topSpeed,
         0,
         dt
       );

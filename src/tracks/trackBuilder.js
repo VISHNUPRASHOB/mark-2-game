@@ -1,121 +1,109 @@
 import * as THREE from 'three';
 
 /**
- * Creates procedural high-visibility road texture with center dashed lines and edge boundaries
- * @param {string} themeId - 'city', 'desert', 'neon'
+ * Creates ultra-clear GTA 5 style road texture with double yellow center lines and white borders
+ * @param {string} themeId
  * @returns {THREE.CanvasTexture}
  */
 function createRoadTexture(themeId) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
-  canvas.height = 1024;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  // 1. Dark asphalt background
-  if (themeId === 'neon') {
-    ctx.fillStyle = '#0a0d18';
-  } else if (themeId === 'desert') {
-    ctx.fillStyle = '#2d2822';
-  } else {
-    ctx.fillStyle = '#1c1f26';
-  }
-  ctx.fillRect(0, 0, 512, 1024);
+  // Dark asphalt surface
+  ctx.fillStyle = themeId === 'neon' ? '#090d1a' : '#1e222b';
+  ctx.fillRect(0, 0, 512, 512);
 
-  // Subtle asphalt grain
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-  for (let i = 0; i < 2000; i++) {
-    const rx = Math.random() * 512;
-    const ry = Math.random() * 1024;
-    ctx.fillRect(rx, ry, 2, 2);
+  // Subtle road grain
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+  for (let i = 0; i < 1500; i++) {
+    ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
   }
 
-  // 2. Solid White/Yellow Road Outer Edge Boundaries
-  const edgeColor = themeId === 'neon' ? '#00ffff' : '#ffffff';
-  ctx.fillStyle = edgeColor;
-  ctx.shadowColor = edgeColor;
-  ctx.shadowBlur = themeId === 'neon' ? 8 : 0;
-  
-  // Left solid line
-  ctx.fillRect(20, 0, 14, 1024);
-  // Right solid line
-  ctx.fillRect(512 - 34, 0, 14, 1024);
+  // Solid White Edge Lines (Left & Right boundaries)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(16, 0, 12, 512); // Left edge line
+  ctx.fillRect(512 - 28, 0, 12, 512); // Right edge line
 
-  // 3. Bright Dashed Center Line
-  const centerColor = themeId === 'neon' ? '#ff00ff' : (themeId === 'desert' ? '#ffdd00' : '#ffffff');
+  // Center Double Yellow Lines (GTA 5 American Street Style)
+  const centerColor = themeId === 'neon' ? '#00f0ff' : '#facc15';
   ctx.fillStyle = centerColor;
-  ctx.shadowColor = centerColor;
-  ctx.shadowBlur = themeId === 'neon' ? 10 : 0;
-
-  const dashHeight = 120;
-  const gapHeight = 100;
-  for (let y = 0; y < 1024; y += dashHeight + gapHeight) {
-    ctx.fillRect(248, y, 16, dashHeight);
+  
+  if (themeId === 'neon') {
+    // Glowing neon center line
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 12;
+    ctx.fillRect(250, 0, 12, 512);
+  } else {
+    // Double yellow lines
+    ctx.fillRect(246, 0, 6, 512);
+    ctx.fillRect(260, 0, 6, 512);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
   texture.anisotropy = 8;
+  texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
 /**
- * Creates striped racing curb texture (Red/White or Neon)
+ * Creates high-contrast striped racing curb texture (Red/White or Neon)
  * @param {string} themeId
  * @returns {THREE.CanvasTexture}
  */
 function createCurbTexture(themeId) {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
-  canvas.height = 512;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
   const stripeH = 64;
-  for (let y = 0; y < 512; y += stripeH * 2) {
-    // Primary Stripe
-    ctx.fillStyle = themeId === 'neon' ? '#ff007f' : '#dc2626';
+  for (let y = 0; y < 256; y += stripeH * 2) {
+    ctx.fillStyle = themeId === 'neon' ? '#f43f5e' : '#ef4444';
     ctx.fillRect(0, y, 128, stripeH);
 
-    // Secondary Stripe
-    ctx.fillStyle = themeId === 'neon' ? '#00ffff' : '#f8fafc';
+    ctx.fillStyle = themeId === 'neon' ? '#00f0ff' : '#ffffff';
     ctx.fillRect(0, y + stripeH, 128, stripeH);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
 /**
- * Builds high-visibility 3D track geometry with markings, barriers, start gantry and turn arrows
- * @param {object} levelData - Level definition from trackData.js
+ * Builds simple, high-visibility 3D track geometry
+ * @param {object} levelData
  */
 export function buildTrack(levelData) {
   const trackGroup = new THREE.Group();
   
-  // 1. Create Smooth Spline Curve
+  // 1. Create Smooth Track Spline
   const points = levelData.controlPoints.map(p => new THREE.Vector3(p.x, p.y, p.z));
   const curve = new THREE.CatmullRomCurve3(points, true, 'centripetal');
   
-  const trackWidth = levelData.trackWidth || 15;
-  const wallHeight = levelData.wallHeight || 1.8;
-  const segments = 600;
+  const trackWidth = levelData.trackWidth || 20;
+  const wallHeight = levelData.wallHeight || 1.6;
+  const segments = 500;
   const trackLength = curve.getLength();
 
   // 2. Textures & Materials
   const roadTex = createRoadTexture(levelData.id);
-  const vRepeat = Math.round(trackLength / 18);
-  roadTex.repeat.set(1, vRepeat);
+  roadTex.repeat.set(1, Math.round(trackLength / 16));
 
   const roadMat = new THREE.MeshStandardMaterial({
     map: roadTex,
-    roughness: 0.6,
+    roughness: 0.55,
     metalness: 0.1
   });
 
   const curbTex = createCurbTexture(levelData.id);
-  curbTex.repeat.set(1, Math.round(trackLength / 12));
+  curbTex.repeat.set(1, Math.round(trackLength / 10));
 
   const barrierMat = new THREE.MeshStandardMaterial({
     map: curbTex,
@@ -124,7 +112,7 @@ export function buildTrack(levelData) {
     emissive: levelData.id === 'neon' ? 0x220033 : 0x000000
   });
 
-  // 3. Track Ribbon & Barrier Mesh Construction
+  // 3. Build Road Surface & Barriers
   const roadGeo = new THREE.BufferGeometry();
   const leftWallGeo = new THREE.BufferGeometry();
   const rightWallGeo = new THREE.BufferGeometry();
@@ -154,12 +142,11 @@ export function buildTrack(levelData) {
     // Road surface
     roadVertices.push(pLeft.x, pLeft.y + 0.05, pLeft.z);
     roadVertices.push(pRight.x, pRight.y + 0.05, pRight.z);
-    
     roadUvs.push(0, t);
     roadUvs.push(1, t);
     
     // Barrier walls
-    const wallThick = 0.45;
+    const wallThick = 0.5;
     const pLeftOuter = pLeft.clone().sub(frenetFrames.binormals[i % segments].clone().multiplyScalar(wallThick));
     const pRightOuter = pRight.clone().add(frenetFrames.binormals[i % segments].clone().multiplyScalar(wallThick));
     
@@ -167,14 +154,12 @@ export function buildTrack(levelData) {
     leftWallVertices.push(pLeftOuter.x, pLeftOuter.y, pLeftOuter.z);
     leftWallVertices.push(pLeft.x, pLeft.y + wallHeight, pLeft.z);
     leftWallVertices.push(pLeftOuter.x, pLeftOuter.y + wallHeight, pLeftOuter.z);
-    
     leftWallUvs.push(0, t, 1, t, 0, t, 1, t);
 
     rightWallVertices.push(pRight.x, pRight.y, pRight.z);
     rightWallVertices.push(pRightOuter.x, pRightOuter.y, pRightOuter.z);
     rightWallVertices.push(pRight.x, pRight.y + wallHeight, pRight.z);
     rightWallVertices.push(pRightOuter.x, pRightOuter.y + wallHeight, pRightOuter.z);
-
     rightWallUvs.push(0, t, 1, t, 0, t, 1, t);
     
     if (i < segments) {
@@ -186,13 +171,13 @@ export function buildTrack(levelData) {
       const wRow1 = i * 4;
       const wRow2 = (i + 1) * 4;
       
-      // Left Wall indices
+      // Left wall faces
       leftWallIndices.push(wRow1, wRow2, wRow1 + 2);
       leftWallIndices.push(wRow2, wRow2 + 2, wRow1 + 2);
       leftWallIndices.push(wRow1 + 2, wRow2 + 2, wRow1 + 3);
       leftWallIndices.push(wRow2 + 2, wRow2 + 3, wRow1 + 3);
       
-      // Right Wall indices
+      // Right wall faces
       rightWallIndices.push(wRow1, wRow1 + 2, wRow2);
       rightWallIndices.push(wRow2, wRow1 + 2, wRow2 + 2);
       rightWallIndices.push(wRow1 + 2, wRow1 + 3, wRow2 + 2);
@@ -204,7 +189,6 @@ export function buildTrack(levelData) {
   roadGeo.setAttribute('uv', new THREE.Float32BufferAttribute(roadUvs, 2));
   roadGeo.setIndex(roadIndices);
   roadGeo.computeVertexNormals();
-  
   const roadMesh = new THREE.Mesh(roadGeo, roadMat);
   roadMesh.receiveShadow = true;
   trackGroup.add(roadMesh);
@@ -227,7 +211,7 @@ export function buildTrack(levelData) {
   rightWallMesh.receiveShadow = true;
   trackGroup.add(rightWallMesh);
 
-  // 4. Overhead Start / Finish Gantry Banner
+  // 4. Overhead Start / Finish Gantry Arch
   const startPos = curve.getPointAt(0);
   const startTangent = curve.getTangentAt(0);
   const startBinormal = frenetFrames.binormals[0];
@@ -235,56 +219,51 @@ export function buildTrack(levelData) {
   const gantryGroup = new THREE.Group();
   gantryGroup.position.copy(startPos);
   
-  // Gantry Arch Pillars
   const pillarMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 });
-  const pGeo = new THREE.BoxGeometry(0.8, 6.5, 0.8);
+  const pGeo = new THREE.BoxGeometry(1.0, 7.5, 1.0);
   
   const pLeft = new THREE.Mesh(pGeo, pillarMat);
-  pLeft.position.copy(startBinormal.clone().multiplyScalar(-trackWidth / 2 - 0.5));
-  pLeft.position.y = 3.25;
+  pLeft.position.copy(startBinormal.clone().multiplyScalar(-trackWidth / 2 - 0.8));
+  pLeft.position.y = 3.75;
   
   const pRight = new THREE.Mesh(pGeo, pillarMat);
-  pRight.position.copy(startBinormal.clone().multiplyScalar(trackWidth / 2 + 0.5));
-  pRight.position.y = 3.25;
+  pRight.position.copy(startBinormal.clone().multiplyScalar(trackWidth / 2 + 0.8));
+  pRight.position.y = 3.75;
   
-  // Overhead Crossbeam
-  const beamGeo = new THREE.BoxGeometry(trackWidth + 2.5, 1.2, 0.8);
+  const beamGeo = new THREE.BoxGeometry(trackWidth + 3.0, 1.4, 1.0);
   const beamMat = new THREE.MeshStandardMaterial({
     color: levelData.id === 'neon' ? 0x00f0ff : 0x0284c7,
-    emissive: levelData.id === 'neon' ? 0x00aaff : 0x002244,
-    metalness: 0.7,
-    roughness: 0.3
+    emissive: levelData.id === 'neon' ? 0x00aaff : 0x001133,
+    metalness: 0.8,
+    roughness: 0.2
   });
   const beam = new THREE.Mesh(beamGeo, beamMat);
-  beam.position.y = 6.0;
+  beam.position.y = 7.0;
   
-  // Orient gantry along track tangent
   gantryGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), startTangent);
   gantryGroup.add(pLeft, pRight, beam);
   trackGroup.add(gantryGroup);
 
   // 5. Turn Direction Chevron Arrow Boards on Bends
-  for (let i = 0; i < segments; i += 40) {
+  for (let i = 0; i < segments; i += 35) {
     const t = i / segments;
     const tNext = (i + 15) / segments;
     const tan1 = curve.getTangentAt(t);
     const tan2 = curve.getTangentAt(tNext);
     const angleDiff = tan1.angleTo(tan2);
 
-    // If curvature is significant, place a chevron indicator on outer barrier
-    if (angleDiff > 0.15) {
+    if (angleDiff > 0.12) {
       const pt = curve.getPointAt(t);
       const binorm = frenetFrames.binormals[i % segments];
       
-      const arrowGeo = new THREE.BoxGeometry(2.5, 1.2, 0.2);
+      const arrowGeo = new THREE.BoxGeometry(3.0, 1.4, 0.2);
       const arrowMat = new THREE.MeshBasicMaterial({
-        color: levelData.id === 'neon' ? 0x00ffff : 0xfacc15
+        color: levelData.id === 'neon' ? 0x00f0ff : 0xfacc15
       });
       const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
       
-      // Position on outer wall
-      arrowMesh.position.copy(pt).add(binorm.clone().multiplyScalar(trackWidth / 2 + 0.2));
-      arrowMesh.position.y += wallHeight * 0.75;
+      arrowMesh.position.copy(pt).add(binorm.clone().multiplyScalar(trackWidth / 2 + 0.3));
+      arrowMesh.position.y += wallHeight * 0.8;
       arrowMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan1);
       trackGroup.add(arrowMesh);
     }
@@ -303,8 +282,8 @@ export function buildTrack(levelData) {
   }
 
   // Starting position in right-hand lane
-  const offsetStartPos = startPos.clone().add(startBinormal.clone().multiplyScalar(trackWidth * 0.22));
-  offsetStartPos.y += 0.4;
+  const offsetStartPos = startPos.clone().add(startBinormal.clone().multiplyScalar(trackWidth * 0.2));
+  offsetStartPos.y += 0.35;
 
   return {
     trackGroup,
