@@ -1,0 +1,111 @@
+export const LEVELS = [
+  {
+    id: 'city',
+    name: 'City Streets',
+    description: 'Race through the downtown district',
+    laps: 3,
+    difficulty: 1,
+    trackWidth: 14,
+    wallHeight: 2,
+    controlPoints: [
+      { x: 0, y: 0, z: 0 },
+      { x: 60, y: 0, z: 0 },
+      { x: 120, y: 0, z: 30 },
+      { x: 140, y: 0, z: 80 },
+      { x: 120, y: 0, z: 140 },
+      { x: 60, y: 0, z: 160 },
+      { x: -20, y: 0, z: 150 },
+      { x: -80, y: 0, z: 120 },
+      { x: -100, y: 0, z: 60 },
+      { x: -80, y: 0, z: 0 },
+      { x: -60, y: 0, z: -40 },
+      { x: -20, y: 0, z: -50 }
+    ],
+    theme: {
+      sky: { topColor: 0x87ceeb, bottomColor: 0xf0f0f0 },
+      ground: 0x555555,
+      road: 0x333333,
+      roadLine: 0xffffff,
+      curb: 0xff0000,
+      ambient: 0xffffff,
+      ambientIntensity: 0.6,
+      sun: 0xffffff,
+      sunIntensity: 1.0,
+      sunPosition: { x: 50, y: 100, z: 50 },
+      fog: { color: 0xcccccc, near: 200, far: 500 },
+      decorations: 'city'
+    }
+  },
+  {
+    id: 'desert',
+    name: 'Desert Canyon',
+    description: 'Sweeping curves through red rock canyons',
+    laps: 3,
+    difficulty: 2,
+    trackWidth: 14,
+    wallHeight: 1.5,
+    controlPoints: [
+      { x: 0, y: 0, z: 0 },
+      { x: 80, y: 1, z: 20 },
+      { x: 140, y: 3, z: 80 },
+      { x: 120, y: 5, z: 160 },
+      { x: 40, y: 3, z: 200 },
+      { x: -40, y: 2, z: 180 },
+      { x: -100, y: 4, z: 120 },
+      { x: -140, y: 2, z: 40 },
+      { x: -120, y: 1, z: -40 },
+      { x: -60, y: 0, z: -60 }
+    ],
+    theme: {
+      sky: { topColor: 0xff7e5f, bottomColor: 0xfeb47b },
+      ground: 0xc2b280,
+      road: 0x4a453f,
+      roadLine: 0xffd700,
+      curb: 0xa0522d,
+      ambient: 0xffe4b5,
+      ambientIntensity: 0.5,
+      sun: 0xffa07a,
+      sunIntensity: 1.2,
+      sunPosition: { x: -100, y: 50, z: -100 },
+      fog: { color: 0xc2b280, near: 150, far: 450 },
+      decorations: 'desert'
+    }
+  },
+  {
+    id: 'neon',
+    name: 'Neon Nightway',
+    description: 'Cyberpunk track with massive banking and drops',
+    laps: 4,
+    difficulty: 3,
+    trackWidth: 16,
+    wallHeight: 3,
+    controlPoints: [
+      { x: 0, y: 0, z: 0 },
+      { x: 80, y: 2, z: -40 },
+      { x: 140, y: 5, z: -120 },
+      { x: 100, y: 8, z: -200 },
+      { x: 0, y: 6, z: -220 },
+      { x: -100, y: 4, z: -180 },
+      { x: -160, y: 2, z: -80 },
+      { x: -140, y: 0, z: 20 },
+      { x: -80, y: 2, z: 100 },
+      { x: 0, y: 4, z: 120 },
+      { x: 60, y: 2, z: 80 },
+      { x: 40, y: 1, z: 30 }
+    ],
+    theme: {
+      sky: { topColor: 0x0a0a2a, bottomColor: 0x1a0a2a },
+      ground: 0x050510,
+      road: 0x11111a,
+      roadLine: 0x00ffff,
+      curb: 0xff00ff,
+      ambient: 0x4040ff,
+      ambientIntensity: 0.3,
+      sun: 0x00ffff,
+      sunIntensity: 0.5,
+      sunPosition: { x: 0, y: 100, z: 0 },
+      fog: { color: 0x0a0a2a, near: 50, far: 300 },
+      decorations: 'neon'
+    }
+  }
+];
